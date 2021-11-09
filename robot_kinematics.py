@@ -82,8 +82,8 @@ def denavit_hartenberg(joint_angles: JointAngles):
     | j |     theta |         d |         a |     alpha |    offset |
     +---+-----------+-----------+-----------+-----------+-----------+
     |  1|         q1|    413/100|          0|       pi/2|          0|
-    |  2|         q2|          0|    561/100|          0|          0|
-    |  3|         q3|          0|    639/100|          0|          0|
+    |  2|         q2|          0|    561/100|          0|       pi/2|
+    |  3|         q3|          0|    639/100|          0|       pi/2|
     |  4|         q4|          0|     113/25|          0|          0|
     +---+-----------+-----------+-----------+-----------+-----------+
     """
@@ -97,7 +97,7 @@ def denavit_hartenberg(joint_angles: JointAngles):
     d = [413 / 100, 0, 0, 0]
     a = [0, 561 / 100, 639 / 100, 113 / 25]
     alpha = [math.pi / 2, 0, 0, 0]
-    offset = [0, 0, 0, 0]
+    offset = [0, math.pi/2, math.pi/2, 0]
 
     T = np.identity(4)
     for i in range(len(thetas)):
@@ -111,6 +111,7 @@ def transformation_matrix(
     theta: float, d: float, a: float, alpha: float, offset: float
 ) -> np.array:
     """Calculates the Transformation Matrix"""
+    theta = theta + offset
     return np.array(
         [
             [

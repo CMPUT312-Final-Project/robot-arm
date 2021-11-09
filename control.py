@@ -11,6 +11,14 @@ from robot_kinematics import CartesianCoordinates
 import lss
 import lss_const as lssc
 from robot_kinematics import JointAngles, forward_kinematics
+import sys, signal
+
+def _handler(signal, frame):
+    print('\nYou pressed Ctrl+C!')
+    lss.closeBus()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, _handler)
 
 PORT = "/dev/tty.usbserial-A10KM8FE"
 lss.initBus(PORT, lssc.LSS_DefaultBaud)
@@ -35,8 +43,17 @@ wrist.limp()
 gripper.limp()
 allMotors.limp()
 
+ye = JointAngles(
+        base.getPosition(),
+        shoulder.getPosition(),
+        elbow.getPosition(),
+        wrist.getPosition(),
+        gripper.getPosition(),
+    )
+print(ye.intify())
 pos = JointAngles(0, 0, 0, 0, 0)
-while 1:
+
+while True:
     time.sleep(0.02)
     lastPos = pos
     posRead = JointAngles(
@@ -52,3 +69,4 @@ while 1:
         if pos.hasChanged(lastPos):
             coordinates: CartesianCoordinates = forward_kinematics(pos)
             print(coordinates)
+            
