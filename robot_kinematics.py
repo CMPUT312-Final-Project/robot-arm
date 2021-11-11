@@ -26,8 +26,17 @@ class JointAngles:
     theta4: float
     gripper: float
 
+    def __init__(self, theta1, theta2, theta3, theta4, gripper):
+        self.theta1 = theta1
+        self.theta2 = theta2
+        self.theta3 = theta3
+        self.theta4 = theta4
+        self.gripper = gripper
+        if not self.is_valid():
+            raise ValueError("Invalid JointAngles")
+    
     # Return false if any joint angle is None
-    def isValid(self):
+    def is_valid(self):
         return (
             self.theta1 is not None
             and self.theta2 is not None
@@ -36,7 +45,7 @@ class JointAngles:
             and self.gripper is not None
         )
 
-    def intify(self):
+    def from_motor_degrees(self):
         return JointAngles(
             int(self.theta1, 10) // 10,
             int(self.theta2, 10) // 10,
@@ -45,17 +54,26 @@ class JointAngles:
             int(self.gripper, 10) // 10,
         )
 
-    def hasChanged(self, other: Type["JointAngles"]):
-        # Treshold for change == 2 degrees
-        return (
-            abs(self.theta1 - other.theta1) > 2
-            or abs(self.theta2 - other.theta2) > 2
-            or abs(self.theta3 - other.theta3) > 2
-            or abs(self.theta4 - other.theta4) > 2
-            or abs(self.gripper - other.gripper) > 2
+    def to_motor_degrees(self):
+        return JointAngles(
+            int(self.theta1 * 10),
+            int(self.theta2 * 10),
+            int(self.theta3 * 10),
+            int(self.theta4 * 10),
+            int(self.gripper * 10),
         )
 
-    def degreeToRadian(self):
+    def has_changed(self, other: Type["JointAngles"], proximity: float = 2):
+        # Treshold for change == 2 degrees
+        return (
+            abs(self.theta1 - other.theta1) > proximity
+            or abs(self.theta2 - other.theta2) > proximity
+            or abs(self.theta3 - other.theta3) > proximity
+            or abs(self.theta4 - other.theta4) > proximity
+            # or abs(self.gripper - other.gripper) > 2
+        )
+
+    def degree_to_radian(self):
         return JointAngles(
             math.radians(self.theta1),
             math.radians(self.theta2),
@@ -64,8 +82,17 @@ class JointAngles:
             math.radians(self.gripper),
         )
 
+    def radian_to_degree(self):
+        return JointAngles(
+            math.degrees(self.theta1),
+            math.degrees(self.theta2),
+            math.degrees(self.theta3),
+            math.degrees(self.theta4),
+            math.degrees(self.gripper),
+        )
+
     @staticmethod
-    def npArrayToJointAngles(array):
+    def np_array_to_joint_angles(array):
         return JointAngles(
             array[0],
             array[1],
@@ -74,16 +101,7 @@ class JointAngles:
             0,
         )
 
-    def add(self, other: Type["JointAngles"]):
-        return JointAngles(
-            self.theta1 + other.theta1,
-            self.theta2 + other.theta2,
-            self.theta3 + other.theta3,
-            self.theta4 + other.theta4,
-            self.gripper + other.gripper,
-        )
-
-    def toNPArray(self):
+    def to_np_array(self):
         return np.array([self.theta1, self.theta2, self.theta3, self.theta4])
 
     def constraint_angle(self):
@@ -103,6 +121,24 @@ class JointAngles:
             self.gripper * other,
         )
 
+    def __add__(self, other: Type["JointAngles"]):
+        return JointAngles(
+            self.theta1 + other.theta1,
+            self.theta2 + other.theta2,
+            self.theta3 + other.theta3,
+            self.theta4 + other.theta4,
+            self.gripper + other.gripper,
+        )
+
+    def __mod__(self, other):
+        return JointAngles(
+            self.theta1 % other,
+            self.theta2 % other,
+            self.theta3 % other,
+            self.theta4 % other,
+            self.gripper % other,
+        )
+
 
 @dataclass
 class CartesianCoordinates:
@@ -114,6 +150,28 @@ class CartesianCoordinates:
     def return_np(self):
         return np.array([self.x, self.y, self.z])
 
+    def __sub__(self, other):
+        return CartesianCoordinates(
+            self.x - other.x,
+            self.y - other.y,
+            self.z - other.z,
+        )
+
+    def __add__(self, other: Type["CartesianCoordinates"]):
+        return CartesianCoordinates(
+            self.x + other.x,
+            self.y + other.y,
+            self.z + other.z,
+        )
+
+    # Divide by int
+    def __truediv__(self, other: int):
+        return CartesianCoordinates(
+            self.x / other,
+            self.y / other,
+            self.z / other,
+        )
+
 
 def inverse_kinematics(
     cartesian_coordinates: CartesianCoordinates, starting_joint_angles: JointAngles
@@ -123,33 +181,41 @@ def inverse_kinematics(
     """
     # TODO: Enforce constraints
     e = cartesian_coordinates
+    invalid = False
     threshold = 0.1
     current_position = forward_kinematics(starting_joint_angles)
     current_joint_angles = starting_joint_angles
-    while distance(current_joint_angles.toNPArray(), e) > threshold:
-        J_i = jacobian_inv(current_joint_angles)
-        change_cartesian_coordinates = CartesianCoordinates(
-            e.x - current_position.x, e.y - current_position.y, e.z - current_position.z
-        )
-        change_angles = np.matmul(J_i[:, :3], change_cartesian_coordinates.return_np())
-        change_angles = JointAngles.npArrayToJointAngles(change_angles * -1)
-        # change_angles.constraint_angle()
-
-        current_joint_angles = current_joint_angles.add(change_angles)
+    while distance(current_joint_angles.to_np_array(), e) > threshold:
+        J_t = jacobian(current_joint_angles).transpose()
+        # print(J_t)
+        change_cartesian_coordinates = e - current_position
+        change_angles = np.matmul(J_t[:, :3], change_cartesian_coordinates.return_np())
+        change_angles = JointAngles.np_array_to_joint_angles(change_angles * 0.005)
+        prev_joint_angles = current_joint_angles
+        current_joint_angles = current_joint_angles + change_angles
 
         current_position = forward_kinematics(current_joint_angles)
-    print(current_joint_angles)
+        current_joint_angles.constraint_angle()
+        if current_joint_angles.has_changed(prev_joint_angles, proximity=0.0001):
+            current_position = forward_kinematics(current_joint_angles)
+        else:
+            print("Solution out of range")
+            invalid = True
+            break
+    if invalid:
+        raise ValueError("Solution out of range")
+    return current_joint_angles
 
 
 def inv_opt(
-    starting_joint_angles: JointAngles, cartesian_coordinates: CartesianCoordinates
+    cartesian_coordinates: CartesianCoordinates, starting_joint_angles: JointAngles
 ):
     """
     Minimum distance to target to find theta1, theta2, theta3, theta4
     """
     optimized_joint_angles = optimize.minimize(
         fun=lambda joint_angles: distance(joint_angles, cartesian_coordinates),
-        x0=starting_joint_angles.toNPArray(),
+        x0=starting_joint_angles.to_np_array(),
         bounds=(
             (MIN_ANGLE, MAX_ANGLE),
             (MIN_ANGLE, MAX_ANGLE),
@@ -158,7 +224,7 @@ def inv_opt(
         ),
         method="L-BFGS-B",
     )
-    optimized_joint_angles = JointAngles.npArrayToJointAngles(optimized_joint_angles.x)
+    optimized_joint_angles = JointAngles.np_array_to_joint_angles(optimized_joint_angles.x)
     print(optimized_joint_angles)
     print(forward_kinematics(optimized_joint_angles))
     return optimized_joint_angles
@@ -166,13 +232,19 @@ def inv_opt(
 
 def distance(joint_angles: np.ndarray, target: CartesianCoordinates):
     current: np.ndarray = forward_kinematics(
-        JointAngles.npArrayToJointAngles(joint_angles)
+        JointAngles.np_array_to_joint_angles(joint_angles)
     ).return_np()
     target: np.ndarray = target.return_np()
     return np.linalg.norm(current - target)
 
 
 def jacobian_inv(joint_angles: JointAngles) -> np.array:
+    """Calculates the Jacobian Inverse Matrix"""
+    e = jacobian(joint_angles)
+    return np.linalg.pinv(e)
+
+
+def jacobian(joint_angles: JointAngles) -> np.array:
     """Calculates the Jacobian Matrix"""
     q1 = joint_angles.theta1
     q2 = joint_angles.theta2
@@ -207,7 +279,7 @@ def jacobian_inv(joint_angles: JointAngles) -> np.array:
             [1, 0, 0, 0],
         ]
     )
-    return np.linalg.pinv(e)
+    return e
 
 
 def forward_kinematics(joint_angles: JointAngles) -> CartesianCoordinates:
@@ -237,7 +309,7 @@ def denavit_hartenberg(joint_angles: JointAngles):
     |  4|         q4|          0|     113/25|          0|          0|
     +---+-----------+-----------+-----------+-----------+-----------+
     """
-    # joint_angles = joint_angles.degreeToRadian()
+    # joint_angles = joint_angles.degree_to_radian()
     thetas = [
         joint_angles.theta1,
         joint_angles.theta2,
@@ -282,11 +354,15 @@ def transformation_matrix(
     )
 
 
-inverse_kinematics(
-    CartesianCoordinates(0, 1, 5),
-    JointAngles(theta1=0, theta2=0, theta3=0, theta4=0, gripper=0),
+target_j = JointAngles(
+    theta1=0.9250245035569946,
+    theta2=-0.10471975511965978,
+    theta3=0.4014257279586958,
+    theta4=1.1868238913561442,
+    gripper=-0.017453292519943295,
 )
-inv_opt(JointAngles(20, 6, 2, 23, 4).degreeToRadian(), CartesianCoordinates(4, 4, 5))
-# inv_opt(JointAngles(20, 6, 62, 7, 4).degreeToRadian(), CartesianCoordinates(9, 4, 2))
-# inv_opt(JointAngles(2, 6, 62, 23, 4).degreeToRadian(), CartesianCoordinates(2, 4, 6))
-# inverse_kinematics(cartesian_coordinates=CartesianCoordinates(5, 4, 2), starting_joint_angles=JointAngles(20, 6, 62, 23, 4).degreeToRadian())
+starting_j = JointAngles(0, 0, 0, 0, 0)
+x = CartesianCoordinates(
+    x=-3.5617379012604284, y=-4.726585837836798, z=3.3382126044630382
+)
+print(inverse_kinematics(x, starting_j))
