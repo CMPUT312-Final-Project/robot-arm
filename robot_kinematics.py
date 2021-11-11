@@ -7,6 +7,7 @@
 ###############################################################################
 
 from dataclasses import dataclass
+import time
 from typing import Type
 import numpy as np
 import math
@@ -187,7 +188,6 @@ def inverse_kinematics(
     current_joint_angles = starting_joint_angles
     while distance(current_joint_angles.to_np_array(), e) > threshold:
         J_t = jacobian(current_joint_angles).transpose()
-        # print(J_t)
         change_cartesian_coordinates = e - current_position
         change_angles = np.matmul(J_t[:, :3], change_cartesian_coordinates.return_np())
         change_angles = JointAngles.np_array_to_joint_angles(change_angles * 0.005)
@@ -227,8 +227,6 @@ def inv_opt(
     optimized_joint_angles = JointAngles.np_array_to_joint_angles(
         optimized_joint_angles.x
     )
-    print(optimized_joint_angles)
-    print(forward_kinematics(optimized_joint_angles))
     return optimized_joint_angles
 
 
@@ -357,6 +355,8 @@ def transformation_matrix(
 
 
 def test_implimentation():
+    # time it 
+    
     target_j = JointAngles(
         theta1=0.9250245035569946,
         theta2=-0.10471975511965978,
@@ -366,6 +366,19 @@ def test_implimentation():
     )
     starting_j = JointAngles(0, 0, 0, 0, 0)
     x = CartesianCoordinates(
-        x=-3.5617379012604284, y=-4.726585837836798, z=3.3382126044630382
+        x=-0.5617379012604284, y=-12.726585837836798, z=3.3382126044630382
     )
-    print(inverse_kinematics(x, starting_j))
+    start = time.time()
+    for i in range(1000):
+        j = inverse_kinematics(x, starting_j)
+    end = time.time()
+    print(end - start)
+    
+    start = time.time()
+    for i in range(1000):
+        j = inv_opt(x, starting_j)
+    end = time.time()
+    print(end - start)
+    
+
+# test_implimentation()

@@ -14,8 +14,8 @@ import lss_const as lssc
 from robot_kinematics import JointAngles, forward_kinematics
 import sys, signal
 from lss import LSS
+from util import motor_angles_to_joint_angles
 from LSS_movement import move_to_angle
-
 def _handler(signal, frame):
     print('\nYou pressed Ctrl+C!')
     lss.closeBus()
@@ -82,7 +82,7 @@ def track_arm_position(base, shoulder, elbow, wrist, gripper, allMotors):
                 print(pos)
                 print(coordinates)
 
-def move_arm(target: CartesianCoordinates, base: LSS, shoulder:LSS, elbow: LSS, wrist: LSS, gripper: LSS, allMotors: LSS, divisions=3):
+def move_arm(target: CartesianCoordinates, base: LSS, shoulder:LSS, elbow: LSS, wrist: LSS, gripper: LSS, allMotors: LSS, divisions=1):
     current_theta: JointAngles = motor_angles_to_joint_angles(base, shoulder, elbow, wrist, gripper)
     current_pos: CartesianCoordinates = forward_kinematics(current_theta)
     
@@ -96,16 +96,28 @@ def move_arm(target: CartesianCoordinates, base: LSS, shoulder:LSS, elbow: LSS, 
         a = move_to_angle(base, shoulder, elbow, wrist, gripper, move_angles)
         current_theta = motor_angles_to_joint_angles(base, shoulder, elbow, wrist, gripper)
         current_pos = forward_kinematics(current_theta)
-    
 
-def motor_angles_to_joint_angles(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper: LSS):
-    return JointAngles(
-        base.getPosition(),
-        shoulder.getPosition(),
-        elbow.getPosition(),
-        wrist.getPosition(),
-        gripper.getPosition(),
-    ).from_motor_degrees().degree_to_radian()
+def control_with_keys(base: LSS, shoulder:LSS, elbow: LSS, wrist: LSS, gripper: LSS, allMotors: LSS):
     
-move_arm(CartesianCoordinates(x=3.505244735627988, y=-7.872908577754623, z=2.5552216211064342), base, shoulder, elbow, wrist, gripper, allMotors)
-#track_arm_position(base, shoulder, elbow, wrist, gripper, allMotors)            
+    
+    while True:
+        initial_pos =  forward_kinematics(motor_angles_to_joint_angles(base, shoulder, elbow, wrist, gripper))
+        input_key = input("Select")
+        if input_key == 'w':
+            move_arm(initial_pos + CartesianCoordinates(0, 0, 2), base, shoulder, elbow, wrist, gripper, allMotors)
+        elif input_key == 's':
+            move_arm(initial_pos - CartesianCoordinates(0, 0, 2), base, shoulder, elbow, wrist, gripper, allMotors)
+        elif input_key == 'a':
+            move_arm(initial_pos + CartesianCoordinates(2, 0, 0), base, shoulder, elbow, wrist, gripper, allMotors)
+        elif input_key == 'd':
+            move_arm(initial_pos - CartesianCoordinates(2, 0, 0), base, shoulder, elbow, wrist, gripper, allMotors)
+        elif input_key == 'q':
+            break
+            
+
+
+    
+# move_arm(CartesianCoordinates(x=3.505244735627988, y=-7.872908577754623, z=2.5552216211064342), base, shoulder, elbow, wrist, gripper, allMotors)
+# track_arm_position(base, shoulder, elbow, wrist, gripper, allMotors)            
+
+control_with_keys(base, shoulder, elbow, wrist, gripper, allMotors)
