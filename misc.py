@@ -53,7 +53,7 @@ def jacobian_matrix() -> Matrix:
             J[3:, i] = R_i @ Matrix([[0], [0], [1]])
     J.simplify()
     pretty_print(J)
-    print_python(J)
+    print_latex(J)
 
 
 def denavit_hartenberg(index: int):
