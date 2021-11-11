@@ -26,7 +26,6 @@ Inverse Kinematics is used to calculate the joint angles given a position in 3D 
 Robot parameters visualized using the **Robotics Toolbox** [1]
 
 ## Inverse Kinematics
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/github-markdown-css/2.2.1/github-markdown.css"/>
 
 Jacobian Matrix [2]
 $$J=
