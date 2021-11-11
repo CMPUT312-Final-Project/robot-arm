@@ -34,7 +34,7 @@ class JointAngles:
         self.gripper = gripper
         if not self.is_valid():
             raise ValueError("Invalid JointAngles")
-    
+
     # Return false if any joint angle is None
     def is_valid(self):
         return (
@@ -224,7 +224,9 @@ def inv_opt(
         ),
         method="L-BFGS-B",
     )
-    optimized_joint_angles = JointAngles.np_array_to_joint_angles(optimized_joint_angles.x)
+    optimized_joint_angles = JointAngles.np_array_to_joint_angles(
+        optimized_joint_angles.x
+    )
     print(optimized_joint_angles)
     print(forward_kinematics(optimized_joint_angles))
     return optimized_joint_angles
@@ -354,15 +356,16 @@ def transformation_matrix(
     )
 
 
-target_j = JointAngles(
-    theta1=0.9250245035569946,
-    theta2=-0.10471975511965978,
-    theta3=0.4014257279586958,
-    theta4=1.1868238913561442,
-    gripper=-0.017453292519943295,
-)
-starting_j = JointAngles(0, 0, 0, 0, 0)
-x = CartesianCoordinates(
-    x=-3.5617379012604284, y=-4.726585837836798, z=3.3382126044630382
-)
-print(inverse_kinematics(x, starting_j))
+def test_implimentation():
+    target_j = JointAngles(
+        theta1=0.9250245035569946,
+        theta2=-0.10471975511965978,
+        theta3=0.4014257279586958,
+        theta4=1.1868238913561442,
+        gripper=-0.017453292519943295,
+    )
+    starting_j = JointAngles(0, 0, 0, 0, 0)
+    x = CartesianCoordinates(
+        x=-3.5617379012604284, y=-4.726585837836798, z=3.3382126044630382
+    )
+    print(inverse_kinematics(x, starting_j))

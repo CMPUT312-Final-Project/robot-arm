@@ -94,7 +94,6 @@ def move_arm(target: CartesianCoordinates, base: LSS, shoulder:LSS, elbow: LSS, 
         move_angles = move_angles.radian_to_degree().to_motor_degrees()
         
         a = move_to_angle(base, shoulder, elbow, wrist, gripper, move_angles)
-        print(a)
         current_theta = motor_angles_to_joint_angles(base, shoulder, elbow, wrist, gripper)
         current_pos = forward_kinematics(current_theta)
     

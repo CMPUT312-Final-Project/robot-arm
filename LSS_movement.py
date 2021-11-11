@@ -3,7 +3,7 @@
 #	Version:		1.0.0
 #	Licence:		LGPL-3.0 (GNU Lesser General Public License version 3)
 #	
-#	Description:	Helper code for moving the robot to a given position
+#	Description:	Helper code for moving the robot with given angles
 #   Url:            https://github.com/Robotics-Technology/Chess-Robot/blob/master/ArmControl.py
 ###############################################################################
 
