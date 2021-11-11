@@ -355,8 +355,8 @@ def transformation_matrix(
 
 
 def test_implimentation():
-    # time it 
-    
+    # time it
+
     target_j = JointAngles(
         theta1=0.9250245035569946,
         theta2=-0.10471975511965978,
@@ -373,12 +373,12 @@ def test_implimentation():
         j = inverse_kinematics(x, starting_j)
     end = time.time()
     print(end - start)
-    
+
     start = time.time()
     for i in range(1000):
         j = inv_opt(x, starting_j)
     end = time.time()
     print(end - start)
-    
+
 
 # test_implimentation()

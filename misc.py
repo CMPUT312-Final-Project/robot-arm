@@ -55,6 +55,7 @@ def jacobian_matrix() -> Matrix:
     pretty_print(J)
     print_python(J)
 
+
 def denavit_hartenberg(index: int):
     """
     The following function calculates the Denavit-Hartenberg Transformation Matrix for a 4-DoF Arm
