@@ -3,7 +3,7 @@
 #	Version:		1.0.0
 #	Licence:		LGPL-3.0 (GNU Lesser General Public License version 3)
 #	
-#	Desscription:	A library that makes using the LSS simple.
+#	Description:	A library that makes using the LSS simple.
 #					Offers support for most Python platforms.
 #					Uses the Python serial library (pySerial).
 ###############################################################################
