@@ -10,9 +10,7 @@ from dataclasses import dataclass
 from typing import Type
 import numpy as np
 import math
-from math import sin, cos, tan, pi
-from numpy.core.numeric import ones
-from numpy.lib.function_base import gradient
+from math import sin, cos
 from scipy import optimize
 
 MAX_ANGLE = math.radians(180)
@@ -128,9 +126,7 @@ def inverse_kinematics(
     threshold = 0.1
     current_position = forward_kinematics(starting_joint_angles)
     current_joint_angles = starting_joint_angles
-    while (
-       distance(current_joint_angles.toNPArray(), e) > threshold
-    ):
+    while distance(current_joint_angles.toNPArray(), e) > threshold:
         J_i = jacobian_inv(current_joint_angles)
         change_cartesian_coordinates = CartesianCoordinates(
             e.x - current_position.x, e.y - current_position.y, e.z - current_position.z
@@ -144,10 +140,11 @@ def inverse_kinematics(
         current_position = forward_kinematics(current_joint_angles)
     print(current_joint_angles)
 
+
 def inv_opt(
     starting_joint_angles: JointAngles, cartesian_coordinates: CartesianCoordinates
 ):
-    """ 
+    """
     Minimum distance to target to find theta1, theta2, theta3, theta4
     """
     optimized_joint_angles = optimize.minimize(
@@ -184,52 +181,25 @@ def jacobian_inv(joint_angles: JointAngles) -> np.array:
     e = np.array(
         [
             [
-                (
-                    5.61 * sin(q2)
-                    + 6.39 * cos(q2 + q3)
-                    + 4.52 * cos(q2 + q3 + q4)
-                )
+                (5.61 * sin(q2) + 6.39 * cos(q2 + q3) + 4.52 * cos(q2 + q3 + q4))
                 * sin(q1),
-                (
-                    6.39 * sin(q2 + q3)
-                    + 4.52 * sin(q2 + q3 + q4)
-                    - 5.61 * cos(q2)
-                )
+                (6.39 * sin(q2 + q3) + 4.52 * sin(q2 + q3 + q4) - 5.61 * cos(q2))
                 * cos(q1),
-                (
-                    6.39 * sin(q2 + q3)
-                    + 4.52 * sin(q2 + q3 + q4)
-                )
-                * cos(q1),
+                (6.39 * sin(q2 + q3) + 4.52 * sin(q2 + q3 + q4)) * cos(q1),
                 4.52 * sin(q2 + q3 + q4) * cos(q1),
             ],
             [
-                -(
-                    5.61 * sin(q2)
-                    + 6.39 * cos(q2 + q3)
-                    + 4.52 * cos(q2 + q3 + q4)
-                )
+                -(5.61 * sin(q2) + 6.39 * cos(q2 + q3) + 4.52 * cos(q2 + q3 + q4))
                 * cos(q1),
-                (
-                    6.39 * sin(q2 + q3)
-                    + 4.52 * sin(q2 + q3 + q4)
-                    - 5.61 * cos(q2)
-                )
+                (6.39 * sin(q2 + q3) + 4.52 * sin(q2 + q3 + q4) - 5.61 * cos(q2))
                 * sin(q1),
-                (
-                    6.39 * sin(q2 + q3)
-                    + 4.52 * sin(q2 + q3 + q4)
-                )
-                * sin(q1),
+                (6.39 * sin(q2 + q3) + 4.52 * sin(q2 + q3 + q4)) * sin(q1),
                 4.52 * sin(q1) * sin(q2 + q3 + q4),
             ],
             [
                 0,
-                -5.61 * sin(q2)
-                - 6.39 * cos(q2 + q3)
-                - 4.52 * cos(q2 + q3 + q4),
-                -6.39 * cos(q2 + q3)
-                - 4.52 * cos(q2 + q3 + q4),
+                -5.61 * sin(q2) - 6.39 * cos(q2 + q3) - 4.52 * cos(q2 + q3 + q4),
+                -6.39 * cos(q2 + q3) - 4.52 * cos(q2 + q3 + q4),
                 -4.52 * cos(q2 + q3 + q4),
             ],
             [0, sin(q1), sin(q1), sin(q1)],
@@ -312,7 +282,10 @@ def transformation_matrix(
     )
 
 
-inverse_kinematics( CartesianCoordinates(0, 1, 5), JointAngles(theta1=0, theta2=0, theta3=0, theta4=0, gripper=0),)
+inverse_kinematics(
+    CartesianCoordinates(0, 1, 5),
+    JointAngles(theta1=0, theta2=0, theta3=0, theta4=0, gripper=0),
+)
 inv_opt(JointAngles(20, 6, 2, 23, 4).degreeToRadian(), CartesianCoordinates(4, 4, 5))
 # inv_opt(JointAngles(20, 6, 62, 7, 4).degreeToRadian(), CartesianCoordinates(9, 4, 2))
 # inv_opt(JointAngles(2, 6, 62, 23, 4).degreeToRadian(), CartesianCoordinates(2, 4, 6))

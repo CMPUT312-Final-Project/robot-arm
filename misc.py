@@ -1,3 +1,11 @@
+###############################################################################
+# 	Author:			Qasim Khawaja
+# 	Version:		1.0.0
+# 	Licence:		LGPL-3.0 (GNU Lesser General Public License version 3)
+#
+# 	Description:	Derive the Jacobian Matrix from the Denavit-Hartenberg Transformation Matrices
+###############################################################################
+
 from sympy import *
 
 t = Symbol("t", real=True)
