@@ -276,6 +276,9 @@ class LSS:
 		genericWrite(self.servoID, lssc.LSS_QueryBlinkingLED)
 		return (genericRead_Blocking_int(self.servoID, lssc.LSS_QueryBlinkingLED))
 	
+	def getMaxMotorDuty(self):
+		genericWrite(self.servoID, lssc.LSS_QueryMaxMotorDuty)
+		return (genericRead_Blocking_int(self.servoID, lssc.LSS_QueryMaxMotorDuty))
 	#> Configs
 	def setOriginOffset(self, pos, setType = lssc.LSS_SetSession):
 		if setType == lssc.LSS_SetSession:
@@ -294,6 +297,8 @@ class LSS:
 			return (genericWrite(self.servoID, lssc.LSS_ActionMaxSpeed, speed))
 		elif setType == lssc.LSS_SetConfig:
 			return (genericWrite(self.servoID, lssc.LSS_ConfigMaxSpeed, speed))
+	def setMaxMotorDuty(self, duty, setType = lssc.LSS_SetSession):
+		return (genericWrite(self.servoID, lssc.LSS_ActionMaxMotorDuty, duty))
 	
 	def setMaxSpeedRPM(self, rpm, setType = lssc.LSS_SetSession):
 		if setType == lssc.LSS_SetSession:

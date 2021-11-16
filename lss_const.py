@@ -112,6 +112,7 @@ LSS_ActionMaxSpeed = "SD"
 LSS_ActionMaxSpeedRPM = "SR"
 LSS_ActionColorLED = "LED"
 LSS_ActionGyreDirection = "G"
+LSS_ActionMaxMotorDuty = "MMD"
 
 # Commands - modifiers
 LSS_ModifierCurrentHaltHold = "CH"
@@ -147,6 +148,7 @@ LSS_QueryFirmwareVersion = "QF"
 LSS_QueryVoltage = "QV"
 LSS_QueryTemperature = "QT"
 LSS_QueryCurrent = "QC"
+LSS_QueryMaxMotorDuty = "QMMD"
 
 # Commands - queries advanced
 LSS_QueryAngularStiffness = "QAS"

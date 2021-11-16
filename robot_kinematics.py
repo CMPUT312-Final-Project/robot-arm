@@ -4,6 +4,8 @@
 # 	Licence:		LGPL-3.0 (GNU Lesser General Public License version 3)
 #
 # 	Description:	Forward and Inverse Kinematics for 4-DoF Arm
+#   Bibligraphy:
+#   [1] S. R. Buss, “Introduction to Inverse Kinematics with Jacobian Transpose, Pseudoinverse and Damped Least Squares methods,” p. 19.
 ###############################################################################
 
 from dataclasses import dataclass
@@ -187,7 +189,8 @@ def inverse_kinematics(
     current_position = forward_kinematics(starting_joint_angles)
     current_joint_angles = starting_joint_angles
     while distance(current_joint_angles.to_np_array(), e) > threshold:
-        J_t = jacobian(current_joint_angles).transpose()
+        J = jacobian(current_joint_angles)
+        J_t = J.transpose()  # [1] Using transpose method with small alpha
         change_cartesian_coordinates = e - current_position
         change_angles = np.matmul(J_t[:, :3], change_cartesian_coordinates.return_np())
         change_angles = JointAngles.np_array_to_joint_angles(change_angles * 0.005)
@@ -369,16 +372,16 @@ def test_implimentation():
         x=-0.5617379012604284, y=-12.726585837836798, z=3.3382126044630382
     )
     start = time.time()
-    for i in range(1000):
+    for i in range(10):
         j = inverse_kinematics(x, starting_j)
     end = time.time()
     print(end - start)
 
-    start = time.time()
-    for i in range(1000):
-        j = inv_opt(x, starting_j)
-    end = time.time()
-    print(end - start)
+    # start = time.time()
+    # for i in range(1000):
+    #     j = inv_opt(x, starting_j)
+    # end = time.time()
+    # print(end - start)
 
 
 # test_implimentation()

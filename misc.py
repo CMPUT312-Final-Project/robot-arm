@@ -116,4 +116,81 @@ def transformation_matrix(
     )
 
 
-jacobian_matrix()
+def translation_matrix(x: float, y: float, z: float) -> Matrix:
+    """Calculates the Translation Matrix"""
+    return Matrix(
+        [
+            [1, 0, 0, x],
+            [0, 1, 0, y],
+            [0, 0, 1, z],
+            [0, 0, 0, 1],
+        ]
+    )
+
+
+def rotation_matrix(axis: str, angle: float) -> Matrix:
+    """Calculates the Rotation Matrix"""
+    if axis == "x":
+        return Matrix(
+            [
+                [
+                    1,
+                    0,
+                    0,
+                ],
+                [0, cos(angle), -sin(angle)],
+                [0, sin(angle), cos(angle)],
+            ]
+        )
+    elif axis == "y":
+        return Matrix(
+            [
+                [
+                    cos(angle),
+                    0,
+                    sin(angle),
+                ],
+                [
+                    0,
+                    1,
+                    0,
+                ],
+                [-sin(angle), 0, cos(angle)],
+              
+            ]
+        )
+    elif axis == "z":
+        return Matrix(
+            [
+                [
+                    cos(angle),
+                    -sin(angle),
+                    0,
+                ],
+                [
+                    sin(angle),
+                    cos(angle),
+                    0,
+                ],
+                [
+                    0,
+                    0,
+                    1,
+                ],
+            ]
+        )
+    else:
+        raise ValueError("Invalid axis")
+
+
+# a = transformation_matrix(symbols("q"), symbols("d"), symbols("a"), symbols("alpha"), symbols("offset"))
+# a = translation_matrix(symbols("x"), symbols("y"), symbols("z"))
+# print_latex(a)
+
+# rx = rotation_matrix("x", symbols("Theta"))
+# print_latex(Equality(symbols("R_x"), rx, evaluate=False))
+# ry = rotation_matrix("y", symbols("Theta"))
+# print_latex(Equality(symbols("R_y"), ry, evaluate=False))
+# rz = rotation_matrix("z", symbols("Theta"))
+# print_latex(Equality(symbols("R_z"), rz, evaluate=False))
+# jacobian_matrix()
