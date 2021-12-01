@@ -52,37 +52,36 @@ def jacobian_matrix() -> Matrix:
             J[:3, i] = (R_i @ Matrix([[0], [0], [1]])).cross(d_4 - d_i)
             J[3:, i] = R_i @ Matrix([[0], [0], [1]])
     J.simplify()
-    pretty_print(J)
-    print_latex(J)
+    print_python(J.tolist())
 
 
 def denavit_hartenberg(index: int):
     """
     The following function calculates the Denavit-Hartenberg Transformation Matrix for a 4-DoF Arm
     with the following parameters:
-    +---+-----------+-----------+-----------+-----------+-----------+
-    | j |     theta |         d |         a |     alpha |    offset |
-    +---+-----------+-----------+-----------+-----------+-----------+
-    |  1|         q1|    413/100|          0|       pi/2|          0|
-    |  2|         q2|          0|    561/100|          0|       pi/2|
-    |  3|         q3|          0|    639/100|          0|       pi/2|
-    |  4|         q4|          0|     113/25|          0|          0|
-    +---+-----------+-----------+-----------+-----------+-----------+
+    +---+-----------+-----------+-----------+-----------+--------------------+
+    | j |     theta |         d |         a |     alpha |    offset          |
+    +---+-----------+-----------+-----------+-----------+--------------------+
+    |  1|         q1|    10.4902|          0|       pi/2|          0         |
+    |  2|         q2|          0|    14.2400|          0| pi/2 + 10.54*pi/180|
+    |  3|         q3|          0|    16.3006|          0| pi/2 - 10.54*pi/180|
+    |  4|         q4|          0|    10.5900|          0| -19.3*pi/180       |
+    +---+-----------+-----------+-----------+-----------+--------------------+
     """
 
     d = [
-        413 / 100,
+        10.4902,
         0,
         0,
-        0,
+        0
     ]
     a = [
         0,
-        561 / 100,
-        639 / 100,
-        113 / 25,
+        14.2400,
+        16.3006,
+        10.5900
     ]
-    offset = [0, pi / 2, pi / 2, 0]
+    offset = [0, pi/2 + 10.54*pi/180, pi/2 - 10.54*pi/180, -19.3*pi/180]
     alpha = [pi / 2, 0, 0, 0]
 
     T = eye(4)
@@ -193,4 +192,4 @@ def rotation_matrix(axis: str, angle: float) -> Matrix:
 # print_latex(Equality(symbols("R_y"), ry, evaluate=False))
 # rz = rotation_matrix("z", symbols("Theta"))
 # print_latex(Equality(symbols("R_z"), rz, evaluate=False))
-# jacobian_matrix()
+jacobian_matrix()

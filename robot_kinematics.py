@@ -10,11 +10,13 @@
 
 from dataclasses import dataclass
 import time
-from typing import Type
+from typing import List, Type
 import numpy as np
 import math
-from math import sin, cos
-from scipy import optimize
+from math import sin, cos, pi
+from numpy.core.function_base import linspace
+from scipy import optimize, interpolate
+import matplotlib.pyplot as plt
 
 MAX_ANGLE = math.radians(180)
 MIN_ANGLE = math.radians(-180)
@@ -177,7 +179,8 @@ class CartesianCoordinates:
 
 
 def inverse_kinematics(
-    cartesian_coordinates: CartesianCoordinates, starting_joint_angles: JointAngles
+    cartesian_coordinates: CartesianCoordinates, starting_joint_angles: JointAngles,
+    attempts: int = 1000,
 ) -> JointAngles:
     """
     Calculates the Joint Angles of the end-effector by using Jacobian
@@ -188,7 +191,8 @@ def inverse_kinematics(
     threshold = 0.1
     current_position = forward_kinematics(starting_joint_angles)
     current_joint_angles = starting_joint_angles
-    while distance(current_joint_angles.to_np_array(), e) > threshold:
+    i = 0
+    while distance(current_joint_angles.to_np_array(), e) > threshold and i < attempts:
         J = jacobian(current_joint_angles)
         J_t = J.transpose()  # [1] Using transpose method with small alpha
         change_cartesian_coordinates = e - current_position
@@ -196,7 +200,7 @@ def inverse_kinematics(
         change_angles = JointAngles.np_array_to_joint_angles(change_angles * 0.005)
         prev_joint_angles = current_joint_angles
         current_joint_angles = current_joint_angles + change_angles
-
+        i += 1
         current_position = forward_kinematics(current_joint_angles)
         current_joint_angles.constraint_angle()
         if current_joint_angles.has_changed(prev_joint_angles, proximity=0.0001):
@@ -207,6 +211,7 @@ def inverse_kinematics(
             break
     if invalid:
         raise ValueError("Solution out of range")
+    print(f"Solution found in {i} attempts")
     return current_joint_angles
 
 
@@ -256,26 +261,212 @@ def jacobian(joint_angles: JointAngles) -> np.array:
     e = np.array(
         [
             [
-                (5.61 * sin(q2) + 6.39 * cos(q2 + q3) + 4.52 * cos(q2 + q3 + q4))
+                (
+                    10.59
+                    * (
+                        sin(q2 + 0.5585 * pi)
+                        * sin(q3 + 0.4414 * pi)
+                        - cos(q2 + 0.5585 * pi)
+                        * cos(q3 + 0.4414 * pi)
+                    )
+                    * cos(q4 - 0.1072 * pi)
+                    + 16.3005
+                    * sin(q2 + 0.5585 * pi)
+                    * sin(q3 + 0.4414 * pi)
+                    - 10.59
+                    * sin(q2 + q3)
+                    * sin(q4 - 0.1072 * pi)
+                    - 16.3005
+                    * cos(q2 + 0.5585 * pi)
+                    * cos(q3 + 0.4414 * pi)
+                    - 14.24
+                    * cos(q2 + 0.5585 * pi)
+                )
                 * sin(q1),
-                (6.39 * sin(q2 + q3) + 4.52 * sin(q2 + q3 + q4) - 5.61 * cos(q2))
+                -(
+                    -10.59
+                    * (
+                        sin(q2 + 0.5585 * pi)
+                        * sin(q3 + 0.4414 * pi)
+                        - cos(q2 + 0.5585 * pi)
+                        * cos(q3 + 0.4414 * pi)
+                    )
+                    * sin(q4 - 0.1072 * pi)
+                    + 16.3005
+                    * sin(q2 + 0.5585 * pi)
+                    * cos(q3 + 0.4414 * pi)
+                    + 14.24
+                    * sin(q2 + 0.5585 * pi)
+                    - 10.59
+                    * sin(q2 + q3)
+                    * cos(q4 - 0.1072 * pi)
+                    + 16.3005
+                    * sin(q3 + 0.4414 * pi)
+                    * cos(q2 + 0.5585 * pi)
+                )
                 * cos(q1),
-                (6.39 * sin(q2 + q3) + 4.52 * sin(q2 + q3 + q4)) * cos(q1),
-                4.52 * sin(q2 + q3 + q4) * cos(q1),
+                (
+                    10.59
+                    * (
+                        sin(q2 + 0.5585 * pi)
+                        * sin(q3 + 0.4414 * pi)
+                        - cos(q2 + 0.5585 * pi)
+                        * cos(q3 + 0.4414 * pi)
+                    )
+                    * sin(q4 - 0.1072 * pi)
+                    - 16.3005
+                    * sin(q2 + 0.5585 * pi)
+                    * cos(q3 + 0.4414 * pi)
+                    + 10.59
+                    * sin(q2 + q3)
+                    * cos(q4 - 0.1072 * pi)
+                    - 16.3005
+                    * sin(q3 + 0.4414 * pi)
+                    * cos(q2 + 0.5585 * pi)
+                )
+                * cos(q1),
+                10.59
+                * (
+                    (
+                        sin(q2 + 0.5585 * pi)
+                        * sin(q3 + 0.4414 * pi)
+                        - cos(q2 + 0.5585 * pi)
+                        * cos(q3 + 0.4414 * pi)
+                    )
+                    * sin(q4 - 0.1072 * pi)
+                    + sin(q2 + q3)
+                    * cos(q4 - 0.1072 * pi)
+                )
+                * cos(q1),
             ],
             [
-                -(5.61 * sin(q2) + 6.39 * cos(q2 + q3) + 4.52 * cos(q2 + q3 + q4))
+                (
+                    -10.59
+                    * (
+                        sin(q2 + 0.5585 * pi)
+                        * sin(q3 + 0.4414 * pi)
+                        - cos(q2 + 0.5585 * pi)
+                        * cos(q3 + 0.4414 * pi)
+                    )
+                    * cos(q4 - 0.1072 * pi)
+                    - 16.3005
+                    * sin(q2 + 0.5585 * pi)
+                    * sin(q3 + 0.4414 * pi)
+                    + 10.59
+                    * sin(q2 + q3)
+                    * sin(q4 - 0.1072 * pi)
+                    + 16.3005
+                    * cos(q2 + 0.5585 * pi)
+                    * cos(q3 + 0.4414 * pi)
+                    + 14.24
+                    * cos(q2 + 0.5585 * pi)
+                )
                 * cos(q1),
-                (6.39 * sin(q2 + q3) + 4.52 * sin(q2 + q3 + q4) - 5.61 * cos(q2))
+                -(
+                    -10.59
+                    * (
+                        sin(q2 + 0.5585 * pi)
+                        * sin(q3 + 0.4414 * pi)
+                        - cos(q2 + 0.5585 * pi)
+                        * cos(q3 + 0.4414 * pi)
+                    )
+                    * sin(q4 - 0.1072 * pi)
+                    + 16.3005
+                    * sin(q2 + 0.5585 * pi)
+                    * cos(q3 + 0.4414 * pi)
+                    + 14.24
+                    * sin(q2 + 0.5585 * pi)
+                    - 10.59
+                    * sin(q2 + q3)
+                    * cos(q4 - 0.1072 * pi)
+                    + 16.3005
+                    * sin(q3 + 0.4414 * pi)
+                    * cos(q2 + 0.5585 * pi)
+                )
                 * sin(q1),
-                (6.39 * sin(q2 + q3) + 4.52 * sin(q2 + q3 + q4)) * sin(q1),
-                4.52 * sin(q1) * sin(q2 + q3 + q4),
+                (
+                    10.59
+                    * (
+                        sin(q2 + 0.5585 * pi)
+                        * sin(q3 + 0.4414 * pi)
+                        - cos(q2 + 0.5585 * pi)
+                        * cos(q3 + 0.4414 * pi)
+                    )
+                    * sin(q4 - 0.1072 * pi)
+                    - 16.3005
+                    * sin(q2 + 0.5585 * pi)
+                    * cos(q3 + 0.4414 * pi)
+                    + 10.59
+                    * sin(q2 + q3)
+                    * cos(q4 - 0.1072 * pi)
+                    - 16.3005
+                    * sin(q3 + 0.4414 * pi)
+                    * cos(q2 + 0.5585 * pi)
+                )
+                * sin(q1),
+                10.59
+                * (
+                    (
+                        sin(q2 + 0.5585 * pi)
+                        * sin(q3 + 0.4414 * pi)
+                        - cos(q2 + 0.5585 * pi)
+                        * cos(q3 + 0.4414 * pi)
+                    )
+                    * sin(q4 - 0.1072 * pi)
+                    + sin(q2 + q3)
+                    * cos(q4 - 0.1072 * pi)
+                )
+                * sin(q1),
             ],
             [
                 0,
-                -5.61 * sin(q2) - 6.39 * cos(q2 + q3) - 4.52 * cos(q2 + q3 + q4),
-                -6.39 * cos(q2 + q3) - 4.52 * cos(q2 + q3 + q4),
-                -4.52 * cos(q2 + q3 + q4),
+                -10.59
+                * (
+                    sin(q2 + 0.5585 * pi)
+                    * sin(q3 + 0.4414 * pi)
+                    - cos(q2 + 0.5585 * pi)
+                    * cos(q3 + 0.4414 * pi)
+                )
+                * cos(q4 - 0.1072 * pi)
+                - 16.3005
+                * sin(q2 + 0.5585 * pi)
+                * sin(q3 + 0.4414 * pi)
+                + 10.59
+                * sin(q2 + q3)
+                * sin(q4 - 0.1072 * pi)
+                + 16.3005
+                * cos(q2 + 0.5585 * pi)
+                * cos(q3 + 0.4414 * pi)
+                + 14.24
+                * cos(q2 + 0.5585 * pi),
+                -10.59
+                * (
+                    sin(q2 + 0.5585 * pi)
+                    * sin(q3 + 0.4414 * pi)
+                    - cos(q2 + 0.5585 * pi)
+                    * cos(q3 + 0.4414 * pi)
+                )
+                * cos(q4 - 0.1072 * pi)
+                - 16.3005
+                * sin(q2 + 0.5585 * pi)
+                * sin(q3 + 0.4414 * pi)
+                + 10.59
+                * sin(q2 + q3)
+                * sin(q4 - 0.1072 * pi)
+                + 16.3005
+                * cos(q2 + 0.5585 * pi)
+                * cos(q3 + 0.4414 * pi),
+                -10.59
+                * (
+                    sin(q2 + 0.5585 * pi)
+                    * sin(q3 + 0.4414 * pi)
+                    - cos(q2 + 0.5585 * pi)
+                    * cos(q3 + 0.4414 * pi)
+                )
+                * cos(q4 - 0.1072 * pi)
+                + 10.59
+                * sin(q2 + q3)
+                * sin(q4 - 0.1072 * pi),
             ],
             [0, sin(q1), sin(q1), sin(q1)],
             [0, -cos(q1), -cos(q1), -cos(q1)],
@@ -303,14 +494,14 @@ def denavit_hartenberg(joint_angles: JointAngles):
     """
     The following function calculates the Denavit-Hartenberg Transformation Matrix for a 4-DoF Arm
     with the following parameters:
-    +---+-----------+-----------+-----------+-----------+-----------+
-    | j |     theta |         d |         a |     alpha |    offset |
-    +---+-----------+-----------+-----------+-----------+-----------+
-    |  1|         q1|    413/100|          0|       pi/2|          0|
-    |  2|         q2|          0|    561/100|          0|       pi/2|
-    |  3|         q3|          0|    639/100|          0|       pi/2|
-    |  4|         q4|          0|     113/25|          0|          0|
-    +---+-----------+-----------+-----------+-----------+-----------+
+    +---+-----------+-----------+-----------+-----------+--------------------+
+    | j |     theta |         d |         a |     alpha |    offset          |
+    +---+-----------+-----------+-----------+-----------+--------------------+
+    |  1|         q1|    10.4902|          0|       pi/2|          0         |
+    |  2|         q2|          0|    14.2400|          0| pi/2 + 10.54*pi/180|
+    |  3|         q3|          0|    16.3006|          0| pi/2 - 10.54*pi/180|
+    |  4|         q4|          0|    10.5900|          0| -19.3*pi/180       |
+    +---+-----------+-----------+-----------+-----------+--------------------+
     """
     # joint_angles = joint_angles.degree_to_radian()
     thetas = [
@@ -319,10 +510,15 @@ def denavit_hartenberg(joint_angles: JointAngles):
         joint_angles.theta3,
         joint_angles.theta4,
     ]
-    d = [413 / 100, 0, 0, 0]
-    a = [0, 561 / 100, 639 / 100, 113 / 25]
+    d = [10.4902, 0, 0, 0]
+    a = [0, 14.24, 16.3006, 10.5900]
     alpha = [math.pi / 2, 0, 0, 0]
-    offset = [0, math.pi / 2, math.pi / 2, 0]
+    offset = [
+        0,
+        (math.pi / 2) + 10.54 * math.pi / 180,
+        math.pi / 2 - 10.54 * math.pi / 180,
+        -19.3 * math.pi / 180,
+    ]
 
     T = np.identity(4)
     for i in range(len(thetas)):
@@ -356,6 +552,41 @@ def transformation_matrix(
         ]
     )
 
+def pathing(starting_angle: JointAngles, end_angle: JointAngles, segments=200)->List[JointAngles]:
+    start_end_theta1 = np.linspace(starting_angle.theta1, end_angle.theta1, 2)
+    start_end_theta2 = np.linspace(starting_angle.theta2, end_angle.theta2, 2)
+    start_end_theta3 = np.linspace(starting_angle.theta3, end_angle.theta3, 2)
+    start_end_theta4 = np.linspace(starting_angle.theta4, end_angle.theta4, 2)
+    spline = interpolate.Rbf(start_end_theta1, start_end_theta2, start_end_theta3, start_end_theta4, function='cubic')
+    # angles = []
+    
+    linspace_theta1 = np.linspace(starting_angle.theta1, end_angle.theta1, segments)
+    linspace_theta2 = np.linspace(starting_angle.theta2, end_angle.theta2, segments)
+    linspace_theta3 = np.linspace(starting_angle.theta3, end_angle.theta3, segments)
+    linspace_theta4 = np.linspace(starting_angle.theta4, end_angle.theta4, segments)
+    interpolated_angles = []
+    
+    for i in range(len(linspace_theta1)):
+        interpolated_angles.append(JointAngles(linspace_theta1[i], linspace_theta2[i], linspace_theta3[i], linspace_theta4[i],0))
+    
+    return interpolated_angles
+        
+
+def test_pathing():
+    start_joint_angle = JointAngles(0,0,0,0,0)
+    end_joint_angle = JointAngles(
+        theta1=-pi/2,
+        theta2=0,
+        theta3=0,
+        theta4=0,
+        gripper=0,
+    )
+    print("Starting", start_joint_angle)
+    print("Ending", end_joint_angle)
+    angles = pathing(start_joint_angle, end_joint_angle)
+    
+    # for angle in angles:
+    #     print(angle)
 
 def test_implimentation():
     # time it
@@ -372,11 +603,13 @@ def test_implimentation():
         x=-0.5617379012604284, y=-12.726585837836798, z=3.3382126044630382
     )
     start = time.time()
-    for i in range(10):
+    for i in range(1):
         j = inverse_kinematics(x, starting_j)
+        print(forward_kinematics(j))
     end = time.time()
     print(end - start)
 
+test_pathing()
     # start = time.time()
     # for i in range(1000):
     #     j = inv_opt(x, starting_j)

@@ -7,10 +7,8 @@
 ###############################################################################
 
 import asyncio
-from math import pi
 import time
 from info_client import sendCartesian
-from misc import Theta
 from robot_kinematics import CartesianCoordinates, inverse_kinematics
 import lss
 import lss_const as lssc
@@ -39,19 +37,35 @@ gripper = LSS(5)
 allMotors = LSS(254)
 
 # Settings from LSS_movement.py
-allMotors.setAngularHoldingStiffness(0)
-allMotors.setMaxSpeed(30)
-base.setMaxSpeed(20)
-# shoulder.setMotionControlEnabled(0)
+# allMotors.setAngularHoldingStiffness(-1)
+# allMotors.setMotionControlEnabled(0)
+allMotors.setMaxSpeed(2)
+allMotors.setAngularAcceleration(0)
+allMotors.setAngularDeceleration(0)
+# allMotors.setFilterPositionCount(20)
 # elbow.setMotionControlEnabled(0)
 event_loop_a = asyncio.new_event_loop()
+
+def path(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper: LSS, allMotors: LSS):
+    # 2 Random Joint Angles
+    allMotors.setMaxSpeed(20)
+    move_to_angle(base, shoulder, elbow, wrist, gripper, JointAngles(0, 0, 0, 0, 0), True)
+    allMotors.setMaxSpeed(20)
+    j2 = JointAngles(theta1=338, theta2=-661, theta3=259, theta4=401, gripper=0)
+    move_to_angle(base, shoulder, elbow, wrist, gripper, j2, False)
+    Thread(target=sensor, args=(base, shoulder, elbow, wrist, gripper), daemon=True).start()
+    while True:
+        input_key = input("Select mode (h,l):")
 
 def track_arm_position(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper: LSS, allMotors: LSS):
 
     # Start thread to read sensor data
+    move_to_angle(base, shoulder, elbow, wrist, gripper, JointAngles(0, 0, 0, 0, 0), True)
     Thread(target=sensor, args=(base, shoulder, elbow, wrist, gripper), daemon=True).start()
-
     while True:
+        # move_to_angle(base, shoulder, elbow, wrist, gripper, angles[curr%2])
+        # time.sleep(10)
+        # curr += 1
         input_key = input("Select mode (h,l):")
         if input_key == "h":
             base.hold()
@@ -75,20 +89,29 @@ def sensor(base, shoulder, elbow, wrist, gripper):
 
     while True:
         lastPos = pos
+        start = time.time()
         posRead = JointAngles(
                 base.getPosition(),
                 shoulder.getPosition(),
                 elbow.getPosition(),
                 wrist.getPosition(),
-                gripper.getPosition(),
+                '0',
             )
+        end = time.time()
+        print(f"Time: {end - start}")
+        print(f"Joint Angles: {posRead}")
         if posRead.is_valid():
             pos = posRead.from_motor_degrees()
-            pos = pos.degree_to_radian()
+            pos: JointAngles = pos.degree_to_radian()
             # if pos.has_changed(lastPos, 0.001):
             coordinates: CartesianCoordinates = forward_kinematics(pos)
-            asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates))
-
+            xr = pos.theta2+pos.theta3+pos.theta4
+            yr = pos.theta1
+            saveToFile(coordinates, xr, yr, time.time())
+            # asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, pos.theta2+pos.theta3+pos.theta4, pos.theta1))
+def saveToFile(coordinates: CartesianCoordinates, xr, yr, seconds):
+    with open("data.txt", "a") as f:
+        f.write(f"{seconds},{coordinates.x},{coordinates.y},{coordinates.z},{xr},{yr}\n")
 def move_arm(
     target: CartesianCoordinates,
     base: LSS,
@@ -191,7 +214,7 @@ def control_with_keys(
             break
 
 
-# move_arm(CartesianCoordinates(x=3.505244735627988, y=-7.872908577754623, z=2.5552216211064342), base, shoulder, elbow, wrist, gripper, allMotors)
-track_arm_position(base, shoulder, elbow, wrist, gripper, allMotors)
-
+# move_arm(CartesianCoordinates(x=-3.505244735627988, y=-7.872908577754623, z=10.5552216211064342), base, shoulder, elbow, wrist, gripper, allMotors)
+# track_arm_position(base, shoulder, elbow, wrist, gripper, allMotors)
+path(base, shoulder, elbow, wrist, gripper, allMotors)
 # control_with_keys(base, shoulder, elbow, wrist, gripper, allMotors)
