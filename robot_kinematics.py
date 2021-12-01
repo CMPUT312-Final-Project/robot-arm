@@ -179,14 +179,13 @@ class CartesianCoordinates:
 
 
 def inverse_kinematics(
-    cartesian_coordinates: CartesianCoordinates, starting_joint_angles: JointAngles,
+    target: CartesianCoordinates, starting_joint_angles: JointAngles,
     attempts: int = 1000,
 ) -> JointAngles:
     """
-    Calculates the Joint Angles of the end-effector by using Jacobian
+    Calculates the Joint Angles of the end-effector by using Jacobian and enforcing the constraints
     """
-    # TODO: Enforce constraints
-    e = cartesian_coordinates
+    e = target
     invalid = False
     threshold = 0.1
     current_position = forward_kinematics(starting_joint_angles)
@@ -197,7 +196,15 @@ def inverse_kinematics(
         J_t = J.transpose()  # [1] Using transpose method with small alpha
         change_cartesian_coordinates = e - current_position
         change_angles = np.matmul(J_t[:, :3], change_cartesian_coordinates.return_np())
-        change_angles = JointAngles.np_array_to_joint_angles(change_angles * 0.005)
+        alpha = 0
+        # Alpha should be close to change_cartesian_coordinates
+        change = change_cartesian_coordinates.return_np()
+        # Inner product of change and change
+        J_J_t_change = J[:3,:] @ change_angles 
+        numerator = np.inner(change, J_J_t_change)
+        denominator = np.inner(J_J_t_change, J_J_t_change)
+        alpha = (numerator/denominator) # [1] Formula for alpha
+        change_angles = JointAngles.np_array_to_joint_angles(change_angles * alpha)
         prev_joint_angles = current_joint_angles
         current_joint_angles = current_joint_angles + change_angles
         i += 1
@@ -211,7 +218,6 @@ def inverse_kinematics(
             break
     if invalid:
         raise ValueError("Solution out of range")
-    print(f"Solution found in {i} attempts")
     return current_joint_angles
 
 
@@ -552,14 +558,7 @@ def transformation_matrix(
         ]
     )
 
-def pathing(starting_angle: JointAngles, end_angle: JointAngles, segments=200)->List[JointAngles]:
-    start_end_theta1 = np.linspace(starting_angle.theta1, end_angle.theta1, 2)
-    start_end_theta2 = np.linspace(starting_angle.theta2, end_angle.theta2, 2)
-    start_end_theta3 = np.linspace(starting_angle.theta3, end_angle.theta3, 2)
-    start_end_theta4 = np.linspace(starting_angle.theta4, end_angle.theta4, 2)
-    spline = interpolate.Rbf(start_end_theta1, start_end_theta2, start_end_theta3, start_end_theta4, function='cubic')
-    # angles = []
-    
+def joint_interpolation(starting_angle: JointAngles, end_angle: JointAngles, segments=200)->List[JointAngles]:
     linspace_theta1 = np.linspace(starting_angle.theta1, end_angle.theta1, segments)
     linspace_theta2 = np.linspace(starting_angle.theta2, end_angle.theta2, segments)
     linspace_theta3 = np.linspace(starting_angle.theta3, end_angle.theta3, segments)
@@ -570,51 +569,14 @@ def pathing(starting_angle: JointAngles, end_angle: JointAngles, segments=200)->
         interpolated_angles.append(JointAngles(linspace_theta1[i], linspace_theta2[i], linspace_theta3[i], linspace_theta4[i],0))
     
     return interpolated_angles
-        
 
-def test_pathing():
-    start_joint_angle = JointAngles(0,0,0,0,0)
-    end_joint_angle = JointAngles(
-        theta1=-pi/2,
-        theta2=0,
-        theta3=0,
-        theta4=0,
-        gripper=0,
-    )
-    print("Starting", start_joint_angle)
-    print("Ending", end_joint_angle)
-    angles = pathing(start_joint_angle, end_joint_angle)
+def cartesian_interploation(starting_point: CartesianCoordinates, end_point: CartesianCoordinates, segments=200)->List[CartesianCoordinates]:
+    linspace_x = np.linspace(starting_point.x, end_point.x, segments)
+    linspace_y = np.linspace(starting_point.y, end_point.y, segments)
+    linspace_z = np.linspace(starting_point.z, end_point.z, segments)
+    interpolated_points = []
     
-    # for angle in angles:
-    #     print(angle)
-
-def test_implimentation():
-    # time it
-
-    target_j = JointAngles(
-        theta1=0.9250245035569946,
-        theta2=-0.10471975511965978,
-        theta3=0.4014257279586958,
-        theta4=1.1868238913561442,
-        gripper=-0.017453292519943295,
-    )
-    starting_j = JointAngles(0, 0, 0, 0, 0)
-    x = CartesianCoordinates(
-        x=-0.5617379012604284, y=-12.726585837836798, z=3.3382126044630382
-    )
-    start = time.time()
-    for i in range(1):
-        j = inverse_kinematics(x, starting_j)
-        print(forward_kinematics(j))
-    end = time.time()
-    print(end - start)
-
-test_pathing()
-    # start = time.time()
-    # for i in range(1000):
-    #     j = inv_opt(x, starting_j)
-    # end = time.time()
-    # print(end - start)
-
-
-# test_implimentation()
+    for i in range(len(linspace_x)):
+        interpolated_points.append(CartesianCoordinates(linspace_x[i], linspace_y[i], linspace_z[i]))
+    
+    return interpolated_points

@@ -8,6 +8,8 @@
 
 import asyncio
 import time
+
+import numpy as np
 from info_client import sendCartesian
 from robot_kinematics import CartesianCoordinates, inverse_kinematics
 import lss
@@ -82,8 +84,33 @@ def track_arm_position(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper
             gripper.limp()
             allMotors.limp()
         
+def sensorFromFile(base, shoulder, elbow, wrist, gripper):
+    '''
+        Thread to read sensor data from a file and send it to the server
+    '''
+    asyncio.set_event_loop(event_loop_a)
+    pos = JointAngles(0, 0, 0, 0, 0).degree_to_radian()
+    pos_list =  readFromFile()
+    i = 1
+    while True:
+        first_pos_read = pos_list[i-1]
+        first_coordinates = CartesianCoordinates(float(first_pos_read[1]), float(first_pos_read[2]), float(first_pos_read[3]))
+        first_xr = float(first_pos_read[4])
+        first_yr = float(first_pos_read[5])
+        
+        second_pos_read = pos_list[i]
+        second_coordinates = CartesianCoordinates(float(second_pos_read[1]), float(second_pos_read[2]), float(second_pos_read[3]))
+        second_xr = float(second_pos_read[4])
+        second_yr = float(second_pos_read[5])
+        
+        i += 1
+        asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, xr, yr))
+        time.sleep(0.1)
 
 def sensor(base, shoulder, elbow, wrist, gripper):
+    '''
+    Thread to read sensor data and send it to the server
+    '''
     asyncio.set_event_loop(event_loop_a)
     pos = JointAngles(0, 0, 0, 0, 0).degree_to_radian()
 
@@ -107,11 +134,20 @@ def sensor(base, shoulder, elbow, wrist, gripper):
             coordinates: CartesianCoordinates = forward_kinematics(pos)
             xr = pos.theta2+pos.theta3+pos.theta4
             yr = pos.theta1
-            saveToFile(coordinates, xr, yr, time.time())
-            # asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, pos.theta2+pos.theta3+pos.theta4, pos.theta1))
+            asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, xr, yr))
+
 def saveToFile(coordinates: CartesianCoordinates, xr, yr, seconds):
     with open("data.txt", "a") as f:
         f.write(f"{seconds},{coordinates.x},{coordinates.y},{coordinates.z},{xr},{yr}\n")
+
+def readFromFile():
+    data = []
+    with open("data.txt", "r") as f:
+        lines = f.readlines()
+        data = [line.split(",") for line in lines]
+    print(data)
+    return data
+
 def move_arm(
     target: CartesianCoordinates,
     base: LSS,
