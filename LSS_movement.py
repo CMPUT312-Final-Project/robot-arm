@@ -14,7 +14,7 @@ from robot_kinematics import JointAngles
 
 def move_to_angle(
     base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper: LSS, angle: JointAngles,
-    wait: bool = False,
+    wait: bool = True,
 ):
 
     start = time.time()

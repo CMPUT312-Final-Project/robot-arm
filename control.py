@@ -10,6 +10,8 @@ import asyncio
 import time
 
 import numpy as np
+from pandas.core.frame import DataFrame
+from pandas.core.resample import Resampler
 from info_client import sendCartesian
 from robot_kinematics import CartesianCoordinates, inverse_kinematics
 import lss
@@ -20,47 +22,61 @@ from lss import LSS
 from util import motor_angles_to_joint_angles
 from LSS_movement import move_to_angle
 from threading import Thread
-
+import pandas as pd
+import matplotlib.pyplot as plt
 def _handler(signal, frame):
     print("\nYou pressed Ctrl+C!")
-    lss.closeBus()
+    plt.close('all')
+    try:
+        lss.closeBus()
+    except:
+        print("Error closing bus")
     sys.exit(0)
-
 
 signal.signal(signal.SIGINT, _handler)
 
-PORT = "/dev/tty.usbserial-A10KM8FE"
-lss.initBus(PORT, lssc.LSS_DefaultBaud)
-base = LSS(1)
-shoulder = LSS(2)
-elbow = LSS(3)
-wrist = LSS(4)
-gripper = LSS(5)
-allMotors = LSS(254)
+try:
+    PORT = "/dev/tty.usbserial-A10KM8FE"
+    lss.initBus(PORT, lssc.LSS_DefaultBaud)
+    base = LSS(1)
+    shoulder = LSS(2)
+    elbow = LSS(3)
+    wrist = LSS(4)
+    gripper = LSS(5)
+    allMotors = LSS(254)
 
-# Settings from LSS_movement.py
-# allMotors.setAngularHoldingStiffness(-1)
-# allMotors.setMotionControlEnabled(0)
-allMotors.setMaxSpeed(2)
-allMotors.setAngularAcceleration(0)
-allMotors.setAngularDeceleration(0)
-# allMotors.setFilterPositionCount(20)
-# elbow.setMotionControlEnabled(0)
-event_loop_a = asyncio.new_event_loop()
+    # Settings from LSS_movement.py
+    # allMotors.setAngularHoldingStiffness(-1)
+    # allMotors.setMotionControlEnabled(0)
+    allMotors.setMaxSpeed(2)
+    allMotors.setAngularAcceleration(0)
+    allMotors.setAngularDeceleration(0)
+    # allMotors.setFilterPositionCount(20)
+    # elbow.setMotionControlEnabled(0)
+    event_loop_a = asyncio.new_event_loop()
+except:
+    print("Error: Could not connect to LSS")
 
 def path(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper: LSS, allMotors: LSS):
+    '''
+        Move the arm on a path and send interpolated data to the server
+    '''
     # 2 Random Joint Angles
     allMotors.setMaxSpeed(20)
-    move_to_angle(base, shoulder, elbow, wrist, gripper, JointAngles(0, 0, 0, 0, 0), True)
-    allMotors.setMaxSpeed(20)
+    move_to_angle(base, shoulder, elbow, wrist, gripper, JointAngles(0, 0, 0, 0, 0))
     j2 = JointAngles(theta1=338, theta2=-661, theta3=259, theta4=401, gripper=0)
+    
+    Thread(target=sensorFromFile, args=(base, shoulder, elbow, wrist, gripper), daemon=True).start()
     move_to_angle(base, shoulder, elbow, wrist, gripper, j2, False)
-    Thread(target=sensor, args=(base, shoulder, elbow, wrist, gripper), daemon=True).start()
     while True:
-        input_key = input("Select mode (h,l):")
+        # Wait
+        input("Waiting")
 
 def track_arm_position(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper: LSS, allMotors: LSS):
-
+    '''
+        Track the arm position and send it to the server
+    '''
+    
     # Start thread to read sensor data
     move_to_angle(base, shoulder, elbow, wrist, gripper, JointAngles(0, 0, 0, 0, 0), True)
     Thread(target=sensor, args=(base, shoulder, elbow, wrist, gripper), daemon=True).start()
@@ -93,16 +109,6 @@ def sensorFromFile(base, shoulder, elbow, wrist, gripper):
     pos_list =  readFromFile()
     i = 1
     while True:
-        first_pos_read = pos_list[i-1]
-        first_coordinates = CartesianCoordinates(float(first_pos_read[1]), float(first_pos_read[2]), float(first_pos_read[3]))
-        first_xr = float(first_pos_read[4])
-        first_yr = float(first_pos_read[5])
-        
-        second_pos_read = pos_list[i]
-        second_coordinates = CartesianCoordinates(float(second_pos_read[1]), float(second_pos_read[2]), float(second_pos_read[3]))
-        second_xr = float(second_pos_read[4])
-        second_yr = float(second_pos_read[5])
-        
         i += 1
         asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, xr, yr))
         time.sleep(0.1)
@@ -115,7 +121,6 @@ def sensor(base, shoulder, elbow, wrist, gripper):
     pos = JointAngles(0, 0, 0, 0, 0).degree_to_radian()
 
     while True:
-        lastPos = pos
         start = time.time()
         posRead = JointAngles(
                 base.getPosition(),
@@ -145,8 +150,27 @@ def readFromFile():
     with open("data.txt", "r") as f:
         lines = f.readlines()
         data = [line.split(",") for line in lines]
-    print(data)
-    return data
+    transformed_data = []
+    for point in data:
+        # print(f"{point[0]},{point[1]},{point[2]},{point[3]},{point[4]},{point[5]}")
+        coordinates = CartesianCoordinates(float(point[1]), float(point[2]), float(point[3]))
+        xr = float(point[4])
+        yr = float(point[5])
+        timestamp = float(point[0])
+        transformed_data.append((timestamp,*coordinates.return_np(), xr, yr))
+    df = pd.DataFrame(transformed_data, columns=['timestamp','x', 'y', 'z', 'xr', 'yr'])
+    # convert timestamp to DateTime index
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+    df.set_index('timestamp', inplace=True)
+    
+    # Interpolate to fixed time step
+    timestep = 0.1
+    upsample: Resampler = df.resample(f'{timestep}S').mean()
+    interpolate: DataFrame = upsample.interpolate(method='cubicspline')
+    interpolate.plot()
+    plt.show()
+    
+    return interpolate
 
 def move_arm(
     target: CartesianCoordinates,
@@ -252,5 +276,6 @@ def control_with_keys(
 
 # move_arm(CartesianCoordinates(x=-3.505244735627988, y=-7.872908577754623, z=10.5552216211064342), base, shoulder, elbow, wrist, gripper, allMotors)
 # track_arm_position(base, shoulder, elbow, wrist, gripper, allMotors)
-path(base, shoulder, elbow, wrist, gripper, allMotors)
+# path(base, shoulder, elbow, wrist, gripper, allMotors)
 # control_with_keys(base, shoulder, elbow, wrist, gripper, allMotors)
+readFromFile()
