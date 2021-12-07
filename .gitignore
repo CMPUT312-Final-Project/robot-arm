@@ -1,2 +1,8 @@
 **/__pycache__/**
 .DS_Store
+rick_anim/**
+*.gif
+*.jpg
+*.png
+*.ipynb
+render_engine.py

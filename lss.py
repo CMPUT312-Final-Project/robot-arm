@@ -10,6 +10,9 @@
 
 ### Import required liraries
 import re
+import sys
+import time
+from typing import List
 import serial
 from math import sqrt, atan, acos, fabs
 
@@ -19,7 +22,7 @@ import lss_const as lssc
 ### Class functions
 def initBus(portName, portBaud):
 	LSS.bus = serial.Serial(portName, portBaud)
-	LSS.bus.timeout = 0.1
+	LSS.bus.timeout = 0.05
 
 def closeBus():
 	if LSS.bus is not None:
@@ -115,6 +118,71 @@ def genericRead_Blocking_str(id, cmd, numChars):
 		return(None)
 	# return value
 	return(readValue)
+
+# The following three functions are authored by: Qasim Khawaja
+def getPositionMultipleServos(ids: List[int]):
+	modifiedWrite(ids, lssc.LSS_QueryPosition)
+	return (modifiedRead_Blocking_int(ids, lssc.LSS_QueryPosition))
+
+# Write with optional parameter and modifiers
+def modifiedWrite(ids: List[str], cmd):
+	
+	for id in ids:
+		combinedCommand = (lssc.LSS_CommandStart + str(id) + cmd + lssc.LSS_CommandEnd).encode()
+		# Write
+		LSS.bus.write(combinedCommand)
+		time.sleep(0.005)
+	return True
+
+# Read an integer result modified to support multiple servos
+def modifiedRead_Blocking_int(ids: List[str], cmd):
+	servo_values = {}
+	
+	if LSS.bus is None:
+		return None
+	try:
+		found = 0
+		while found < len(ids):
+			# Get start of packet and discard header and everything before
+			c = LSS.bus.read()
+			
+			while (c.decode("utf-8") != lssc.LSS_CommandReplyStart):
+				c = LSS.bus.read()
+				if(c.decode("utf-8") == ""):
+					break
+			# Get packet
+			
+			data = LSS.bus.read_until(lssc.LSS_CommandEnd)
+			# Parse packet
+			matches = re.findall("(\d{1,3})([A-Z]{1,4})(-?\d{1,18})", data.decode("utf-8"), re.I)
+			# Check if matches are found
+			if(matches is None):
+				continue
+			for match in matches:
+				if((match[0] is None) or (match[1] is None) or (match[2] is None)):
+					continue
+				# Get values from match
+				readID = match[0]
+				readIdent = match[1]
+				readValue = match[2]
+				# Check id
+				if(readID not in ids):
+					if found==0:
+						return(None)
+					continue
+				# Check identifier
+				if(readIdent != cmd):
+					if found==0:
+						return(None)
+					continue
+				# Add value to dictionary
+				servo_values[readID] = readValue
+				found += 1
+	except Exception as e:
+		print(e)
+		return(None)
+	# return value
+	return(servo_values)
 
 class LSS:
 	# Class attribute
