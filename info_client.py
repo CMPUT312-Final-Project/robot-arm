@@ -19,6 +19,6 @@ async def sendCartesian(cartesianCoordinates: CartesianCoordinates, xr: float, y
         
         for i in [x, y, z, xr, yr]:
             await websocket.send(i)
-            done = await websocket.recv()
+            # done = await websocket.recv()
             # print("< {}".format(done))
         

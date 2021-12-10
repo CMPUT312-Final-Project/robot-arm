@@ -1,5 +1,7 @@
 ###############################################################################
 #	Author:			Sebastien Parent-Charette (support@robotshop.com)
+#					Some modifications by: Qasim Khawaja
+#
 #	Version:		1.0.0
 #	Licence:		LGPL-3.0 (GNU Lesser General Public License version 3)
 #	
