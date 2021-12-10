@@ -8,7 +8,7 @@
 
 import asyncio
 import time
-
+from typing import List
 import numpy as np
 from pandas.core.frame import DataFrame
 from pandas.core.resample import Resampler
@@ -32,7 +32,7 @@ servo_positions = {
     '3': 0,
     '4': 0,
 }
-
+data_file = None
 def _handler(signal, frame):
     '''
         To handle Ctrl+C and safely close the program
@@ -86,6 +86,36 @@ def path(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper: LSS, allMoto
     while True:
         # Wait
         input("Waiting")
+    
+def path_new(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper: LSS, allMotors: LSS,
+         paths: List[JointAngles] = [JointAngles(theta1=640, theta2=-700, theta3=530, theta4=390, gripper=0), JointAngles(theta1=-117, theta2=-381, theta3=-200, theta4=560, gripper=0)
+                                    ,JointAngles(theta1=-415, theta2=-654, theta3=296, theta4=559, gripper=0) ,
+                                    JointAngles(theta1=-98, theta2=-888, theta3=618, theta4=560, gripper=0),
+                                    JointAngles(theta1=640, theta2=-700, theta3=530, theta4=390, gripper=0)
+                                    ],
+         record_data: bool = False,
+         ):
+    '''
+        Move the arm on a path and send interpolated data to the server
+    '''
+    allMotors.setMaxSpeed(25)
+    move_to_angle(base, shoulder, elbow, wrist, gripper, JointAngles(0, 0, 0, 0, 0))
+    if record_data:
+            Thread(target=update_sensor_data, daemon=True).start()
+            # Start thread to send sensor data to server
+            Thread(target=sensor, args=(True,), daemon=True).start()
+    else:
+        pos_list =  readFromFile()
+        pos_list = np.array(pos_list)
+        Thread(target=sensorFromFile, args=(pos_list,), daemon=True).start()
+    for path in paths:
+        move_to_angle(base, shoulder, elbow, wrist, gripper, path, False)
+        time.sleep(3)
+    if record_data:
+        sys.exit(0)
+    else:
+        while True:
+            input("Waiting")
 
 def track_arm_position(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper: LSS, allMotors: LSS):
     '''
@@ -95,7 +125,7 @@ def track_arm_position(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper
     # Start thread to update sensor data
     Thread(target=update_sensor_data, daemon=True).start()
     # Start thread to send sensor data to server
-    Thread(target=sensor, args=(base, shoulder, elbow, wrist, gripper), daemon=True).start()
+    Thread(target=sensor, daemon=True).start()
     while True:
         input_key = input("Select mode (h,l):")
         if input_key == "h":
@@ -113,20 +143,22 @@ def track_arm_position(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper
             gripper.limp()
             allMotors.limp()
         
-def sensorFromFile():
+def sensorFromFile(pos_list: np.ndarray):
     '''
         Thread to read sensor data from a file and send it to the server
     '''
     asyncio.set_event_loop(event_loop_a)
-    pos_list =  readFromFile()
     i = 1
-    pos_list = np.array(pos_list)
-    while i<len(pos_list):
-        i += 1
+    
+    while i<pos_list.shape[0] and pos_list[i].shape[0] == 5:
         coordinates = CartesianCoordinates(pos_list[i][0], pos_list[i][1], pos_list[i][2])
         xr = pos_list[i][3]
         yr = pos_list[i][4]
-        asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, xr, yr))
+        print(coordinates)
+        time.sleep(0.1)
+        # asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, xr, yr))
+        i += 1
+
 
 def update_sensor_data():
     '''
@@ -140,7 +172,7 @@ def update_sensor_data():
         end = time.time()
         if data:
             servo_positions = data
-        print(f"Time taken: {end-start}")
+        # print(f"Time taken: {end-start}")
         
         # This method waits for each servo position
         # servo_positions["1"]=str(base.getPosition())
@@ -148,7 +180,7 @@ def update_sensor_data():
         # servo_positions["3"]=str(elbow.getPosition())
         # servo_positions["4"]=str(wrist.getPosition())
 
-def sensor(base, shoulder, elbow, wrist, gripper):
+def sensor(record_data: bool = False):
     '''
     Thread to read sensor data and send it to the server
     '''
@@ -171,21 +203,31 @@ def sensor(base, shoulder, elbow, wrist, gripper):
             coordinates: CartesianCoordinates = forward_kinematics(pos)
             xr = pos.theta2+pos.theta3+pos.theta4 #+ 19.3 * np.pi/180 # Cube is 19.3 degrees from the base
             yr = pos.theta1
-            start = time.time()
-            asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, xr, yr))
-            end = time.time()
-            print(f"Server Time taken: {end-start}")
-
-def saveToFile(coordinates: CartesianCoordinates, xr, yr, seconds):
+            if record_data:
+                start = time.time()
+                saveToFile(coordinates, xr, yr, start)
+                end = time.time()
+                print(f"Time taken: {end-start}")
+            else:
+                asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, xr, yr))
+def saveToFile(coordinates: CartesianCoordinates, xr, yr, seconds, file_name='sensor_data.txt'):
     '''
         Save the sensor data to a file. (Used for predefined paths)
     '''
-    with open("data.txt", "a") as f:
-        f.write(f"{seconds},{coordinates.x},{coordinates.y},{coordinates.z},{xr},{yr}\n")
+    global data_file
+    if data_file is None:
+        data_file = open(file_name, 'w')
+        # Clear the file
+        data_file.write("")
+        # Open the file in append mode
+        data_file.close()
+        data_file = open(file_name, 'a')
+    data_file.write(f"{seconds},{coordinates.x},{coordinates.y},{coordinates.z},{xr},{yr}\n")
+    data_file.flush()
 
-def readFromFile():
+def readFromFile(file_name='sensor_data.txt'):
     data = []
-    with open("data.txt", "r") as f:
+    with open(file_name, "r") as f:
         lines = f.readlines()
         data = [line.split(",") for line in lines]
     transformed_data = []
@@ -201,12 +243,11 @@ def readFromFile():
     df.set_index('timestamp', inplace=True)
     
     # Interpolate to fixed time step
-    timestep = 1.2
+    timestep = 0.1
     upsample: Resampler = df.resample(f'{timestep}S').mean()
     interpolate: DataFrame = upsample.interpolate(method='cubicspline')
     # interpolate.plot()
     # plt.show()
-    # print(interpolate)
     return interpolate
 
 def move_arm(
@@ -314,7 +355,9 @@ def control_with_keys(
 
 if __name__ == "__main__":
     # move_arm(CartesianCoordinates(x=-3.505244735627988, y=-7.872908577754623, z=10.5552216211064342), base, shoulder, elbow, wrist, gripper, allMotors)
-    track_arm_position(base, shoulder, elbow, wrist, gripper, allMotors)
+    # track_arm_position(base, shoulder, elbow, wrist, gripper, allMotors)
     # path(base, shoulder, elbow, wrist, gripper, allMotors)
+    # path_new(base, shoulder, elbow, wrist, gripper, allMotors, record_data=True)
     # control_with_keys(base, shoulder, elbow, wrist, gripper, allMotors)
     # readFromFile()
+    path_new(base, shoulder, elbow, wrist, gripper, allMotors, record_data=False)
