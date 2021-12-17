@@ -58,7 +58,7 @@ try:
     gripper = LSS(5)
     allMotors = LSS(254)
     shoulder.setGyre(lssc.LSS_GyreCounterClockwise)
-    base.setOriginOffset(-1799)
+    base.setOriginOffset(1799)
     elbow.setOriginOffset(0)
     # Settings from LSS_movement.py
     allMotors.setAngularHoldingStiffness(-1)
@@ -91,7 +91,7 @@ def path_new(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper: LSS, all
          paths: List[JointAngles] = [JointAngles(theta1=640, theta2=-700, theta3=530, theta4=390, gripper=0), JointAngles(theta1=-117, theta2=-381, theta3=-200, theta4=560, gripper=0)
                                     ,JointAngles(theta1=-415, theta2=-654, theta3=296, theta4=559, gripper=0) ,
                                     JointAngles(theta1=-98, theta2=-888, theta3=618, theta4=560, gripper=0),
-                                    JointAngles(theta1=640, theta2=-700, theta3=530, theta4=390, gripper=0)
+                                    JointAngles(theta1=0, theta2=0, theta3=0, theta4=0, gripper=0)
                                     ],
          record_data: bool = False,
          ):
@@ -103,7 +103,7 @@ def path_new(base: LSS, shoulder: LSS, elbow: LSS, wrist: LSS, gripper: LSS, all
     if record_data:
             Thread(target=update_sensor_data, daemon=True).start()
             # Start thread to send sensor data to server
-            Thread(target=sensor, args=(True,), daemon=True).start()
+            Thread(target=sensor, args=(False,), daemon=True).start()
     else:
         pos_list =  readFromFile()
         pos_list = np.array(pos_list)
@@ -156,7 +156,7 @@ def sensorFromFile(pos_list: np.ndarray):
         yr = pos_list[i][4]
         print(coordinates)
         time.sleep(0.1)
-        # asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, xr, yr))
+        asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, xr, yr))
         i += 1
 
 
@@ -172,8 +172,9 @@ def update_sensor_data():
         end = time.time()
         if data:
             servo_positions = data
-        # print(f"Time taken: {end-start}")
-        
+        print(f"Time taken: {end-start}")
+        # print(servo_positions)
+        time.sleep(0.002)
         # This method waits for each servo position
         # servo_positions["1"]=str(base.getPosition())
         # servo_positions["2"]=str(shoulder.getPosition())
@@ -209,7 +210,9 @@ def sensor(record_data: bool = False):
                 end = time.time()
                 print(f"Time taken: {end-start}")
             else:
+                # print(coordinates, xr, yr)
                 asyncio.get_event_loop().run_until_complete(sendCartesian(coordinates, xr, yr))
+                # time.sleep(0.1)
 def saveToFile(coordinates: CartesianCoordinates, xr, yr, seconds, file_name='sensor_data.txt'):
     '''
         Save the sensor data to a file. (Used for predefined paths)
@@ -243,12 +246,13 @@ def readFromFile(file_name='sensor_data.txt'):
     df.set_index('timestamp', inplace=True)
     
     # Interpolate to fixed time step
-    timestep = 0.1
+    timestep = 0.15
     upsample: Resampler = df.resample(f'{timestep}S').mean()
-    interpolate: DataFrame = upsample.interpolate(method='cubicspline')
+    # interpolate: DataFrame = upsample.interpolate(method='cubicspline')
     # interpolate.plot()
-    # plt.show()
-    return interpolate
+    df.plot()
+    plt.show()
+    return upsample
 
 def move_arm(
     target: CartesianCoordinates,
@@ -354,10 +358,15 @@ def control_with_keys(
 
 
 if __name__ == "__main__":
-    # move_arm(CartesianCoordinates(x=-3.505244735627988, y=-7.872908577754623, z=10.5552216211064342), base, shoulder, elbow, wrist, gripper, allMotors)
+    # Start in tracking mode
     # track_arm_position(base, shoulder, elbow, wrist, gripper, allMotors)
-    # path(base, shoulder, elbow, wrist, gripper, allMotors)
+    
+    # This records a path
     # path_new(base, shoulder, elbow, wrist, gripper, allMotors, record_data=True)
+    
+    # This reads from file
+    # path_new(base, shoulder, elbow, wrist, gripper, allMotors, record_data=True)
+    
+    # Extra features to control the arm
     # control_with_keys(base, shoulder, elbow, wrist, gripper, allMotors)
-    # readFromFile()
-    path_new(base, shoulder, elbow, wrist, gripper, allMotors, record_data=False)
+    readFromFile()

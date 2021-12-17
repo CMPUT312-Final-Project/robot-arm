@@ -9,7 +9,7 @@ async def sendCartesian(cartesianCoordinates: CartesianCoordinates, xr: float, y
     '''
         Send cartesian coordinates to the server along with rotation values.
     '''
-    async with websockets.connect('ws://172.31.73.50:8765') as websocket:
+    async with websockets.connect('ws://172.31.143.89:8765') as websocket:
         x = f"setx {cartesianCoordinates.y}"
         y = f"sety {cartesianCoordinates.z}"
         z = f"setz {cartesianCoordinates.x}"
