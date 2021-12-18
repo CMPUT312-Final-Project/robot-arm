@@ -7,6 +7,11 @@ Forward Kinematics is used to calculate the position of the robot arm's end-effe
 
 Inverse Kinematics is used to calculate the joint angles given a position in 3D cartesian space.
 
+It also contains code for interfacing with the Lynxmotion 4DOF Robot Arm, as well as to connect to the render engine server.
+
+Main file: `control.py`
+    - Contains code for demos: interpolation, and real-time tracking.
+
 ## Forward Kinematics
 
 **Denavit-Hartenberg Parameters**
